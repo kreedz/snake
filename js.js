@@ -95,7 +95,7 @@
         }
         if (this.body.length > 1) {
             this.cleanTail();
-        };        
+        }
         var body = this.body;
         switch (keyCode) {
             // left
@@ -132,22 +132,31 @@
     }
     
     Snake.prototype.motion = function() {
+        var that = this;
         this.intervalID = setInterval(function() {
-            (function(that) {
-                that.draw();
-                that.move(that.direction);
-            })(snake);
+            that.draw();
+            that.move(that.direction);
         }, this.speed * 1000);
     }
     
-    console.log('log');
-    
     Snake.prototype.game = function() {
-        snake.build();
-        document.onkeydown = function(e) {
-            snake.direction = e.keyCode;
+        function inPath(that, keycode) {
+            for (k in that.path) {
+                if (keycode === that.path[k]) {
+                    return true;
+                }
+            }
+            return false;
         }
-        snake.motion();
+        this.build();
+        document.onkeydown = (function(that) {
+            return function(e) {
+                if (inPath(that, e.keyCode)) {
+                    that.direction = e.keyCode;
+                }
+            }
+        })(this);
+        this.motion();
     }
     
     function start() {
@@ -155,7 +164,7 @@
             snake.stop();
             delete snake;
         }
-        snake = new Snake(canvas, ctx, 0.3, 5, 5);
+        snake = new Snake(canvas, ctx, 0.3, 5, 20);
         snake.game();
     }
     
