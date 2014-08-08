@@ -10,17 +10,16 @@
     var snake;
     
     Snake.prototype.path = {
-        'left': 37,
-        'up': 38,
-        'right': 39,
-        'down': 40
+        'left'  : 37,
+        'up'    : 38,
+        'right' : 39,
+        'down'  : 40
     };
     
     function Snake(canvas, ctx, speed, length, width) {
         var _speed,
             _length, 
-            _width,
-            set = function(value, to) {to = value > 0 ? value : 1}
+            _width;
         Object.defineProperties(this, {
             'speed': {
                 get: function() {return _speed},
@@ -79,13 +78,13 @@
     }
     
     Snake.prototype.move = function(keyCode) {
-        function unshiftPop(that, x, y) {
+        var unshiftPop = function(x, y) {
             body.unshift([x, y]);
             body.pop();
             if (isCrash(body)) {
-                that.die();
+                this.die();
             }
-        }
+        }.bind(this);
         function isCrash(body) {
             var hash = {};
             for (var i = 0; i < body.length; ++i) {
@@ -93,26 +92,54 @@
             }
             return Object.keys(hash).length < body.length;
         }
-        if (this.body.length > 1) {
+        var unshiftPopWithEdge = function(x, y, path) {
+            switch (path) {
+                case pathNames.left:
+                    if (x < 0) {
+                        x = this.canvas.width - this.width;
+                    }
+                    break;
+                case pathNames.up:
+                    if (y < 0) {
+                        y = this.canvas.height - this.width;
+                    }
+                    break;
+                case pathNames.right:
+                    if (x > this.canvas.width) {
+                        x = 0;
+                    }
+                    break;
+                case pathNames.down:
+                    if (y >  this.canvas.height) {
+                        y = 0;
+                    }
+                    break;
+            }
+            unshiftPop(x, y);
+        }.bind(this);        
+        var body = this.body,
+            bodyFirstX = body[0][0],
+            bodyFirstY = body[0][1],
+            pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'};
+        if (body.length > 1) {
             this.cleanTail();
         }
-        var body = this.body;
         switch (keyCode) {
             // left
-            case this.path['left']:
-                unshiftPop(this, body[0][0] - this.width, body[0][1]);
+            case this.path[pathNames.left]:
+                unshiftPopWithEdge(bodyFirstX - this.width, bodyFirstY, pathNames.left);
                 break;
             // up
-            case this.path['up']:
-                unshiftPop(this, body[0][0], body[0][1] - this.width);
+            case this.path[pathNames.up]:
+                unshiftPopWithEdge(bodyFirstX, bodyFirstY - this.width, pathNames.up);
                 break;
             // right
-            case this.path['right']:
-                unshiftPop(this, body[0][0] + this.width, body[0][1]);
+            case this.path[pathNames.right]:
+                unshiftPopWithEdge(bodyFirstX + this.width, bodyFirstY, pathNames.right);
                 break;
             // down
-            case this.path['down']:
-                unshiftPop(this, body[0][0], body[0][1] + this.width);
+            case this.path[pathNames.down]:
+                unshiftPopWithEdge(bodyFirstX, bodyFirstY + this.width, pathNames.down);
                 break;
         }
     }
@@ -132,30 +159,27 @@
     }
     
     Snake.prototype.motion = function() {
-        var that = this;
         this.intervalID = setInterval(function() {
-            that.draw();
-            that.move(that.direction);
-        }, this.speed * 1000);
+            this.draw();
+            this.move(this.direction);
+        }.bind(this), this.speed * 1000);
     }
     
     Snake.prototype.game = function() {
-        function inPath(that, keycode) {
-            for (k in that.path) {
-                if (keycode === that.path[k]) {
+        function inPath(keycode) {
+            for (k in this.path) {
+                if (keycode === this.path[k]) {
                     return true;
                 }
             }
             return false;
         }
         this.build();
-        document.onkeydown = (function(that) {
-            return function(e) {
-                if (inPath(that, e.keyCode)) {
-                    that.direction = e.keyCode;
-                }
+        document.onkeydown = function(e) {
+            if (inPath.call(this, e.keyCode)) {
+                this.direction = e.keyCode;
             }
-        })(this);
+        }.bind(this);
         this.motion();
     }
     
@@ -164,7 +188,7 @@
             snake.stop();
             delete snake;
         }
-        snake = new Snake(canvas, ctx, 0.3, 5, 20);
+        snake = new Snake(canvas, ctx, 0.1, 5, 20);
         snake.game();
     }
     
