@@ -7,7 +7,7 @@
         Child.prototype = new F();
         Child.prototype.constructor = Child;
         Child.superclass = Parent.prototype;
-    }    
+    }
     
     function Game(canvas) {
         this.canvas = canvas;
@@ -18,13 +18,31 @@
     }
     
     Game.cfg = {
-        'width': 20, 'speed': 0.1, 'length': 5,
         'field': {
-            'width': 640, 'height': 480
+            'width' : 640,
+            'height': 480,
+            'color' : {
+                'fon'    : 'white',
+                'die'    : 'red',
+                'message': 'white',
+            }
         },
         'food': {
-            'length': 1
-        }
+            'length': 1,
+            'color' : 'red',
+        },
+        'snake': {
+            'color' : 'red',
+            'speed' : 0.1,
+            'length': 5,
+            'width' : 20,
+            'path'  : {
+                'left'  : 37,
+                'up'    : 38,
+                'right' : 39,
+                'down'  : 40
+            },
+        },
     }
     
     Game.prototype.start = function() {
@@ -36,20 +54,20 @@
         if (typeof this.food != 'undefined') {
             delete this.food;
         }
-        this.food = new Food(this.canvas, this.ctx, cfg.food.length, cfg.width);
+        this.food = new Food(this.canvas, this.ctx, cfg.food.length, cfg.snake.width);
         this.food.game();
         if (typeof this.snake != 'undefined') {
             this.snake.stop();
             delete this.snake;
         }
-        this.snake = new Snake(this.canvas, this.ctx, cfg.speed, cfg.length, cfg.width);
+        this.snake = new Snake(this.canvas, this.ctx, cfg.snake.speed, cfg.snake.length, cfg.snake.width);
         this.snake.game();
     }
     
     Game.prototype.cleanCanvas = function() {
-        this.ctx.fillStyle = 'white';
+        this.ctx.fillStyle = Game.cfg.field.color.fon;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.width);
-        this.ctx.fillStyle = 'red';
+        //this.ctx.fillStyle = Game.cfg.colors.red;
     }
 
     function Field(canvas, sizes) {
@@ -67,7 +85,7 @@
     
     Food.prototype.game = function() {
         this.build('random');
-        this.draw();    
+        this.draw();
     }
     
     Food.prototype.build = function(place) {
@@ -88,18 +106,17 @@
     }
     
     Food.prototype.draw = function() {
-        this.ctx.fillStyle = 'red'; 
+        this.ctx.fillStyle = Game.cfg.food.color;
         for (var i = 0; i < this.length; ++i) {
             this.ctx.fillRect(this.body[i][0], this.body[i][1], this.width, this.width);
-        }    
-    }    
+        }
+    }
     
     Food.prototype.clean = function() {
-        this.ctx.fillStyle = 'white';
+        this.ctx.fillStyle = Game.cfg.field.color.fon;
         for(var i = 0; i < this.length; ++i) {
             this.ctx.fillRect(this.body[i][0], this.body[i][1], this.width, this.width);
         }
-        this.ctx.fillStyle = 'red';
     }
     
     function Snake(canvas, ctx, speed, length, width) {
@@ -109,27 +126,21 @@
         this.width = width > 0 ? width : 1;
         this.body = [];
         this.ctx = ctx;
-        this.ctx.fillStyle = 'red';
-        this.direction = this.path['up'];
+        this.ctx.fillStyle = Game.cfg.snake.color;
+        this.direction = Game.cfg.snake.path.up;
     }
     
     extend(Snake, Food);
     
-    Snake.prototype.path = {
-        'left'  : 37,
-        'up'    : 38,
-        'right' : 39,
-        'down'  : 40
-    };
-    
     Snake.prototype.cleanTail = function() {
         var body = this.body;
-        this.ctx.fillStyle = 'white';
-        this.ctx.fillRect(body[body.length - 1][0], 
+        this.ctx.fillStyle = Game.cfg.field.color.fon;
+        this.ctx.fillRect(
+            body[body.length - 1][0], 
             body[body.length - 1][1],
             this.width,
-            this.width);
-        this.ctx.fillStyle = 'red';
+            this.width
+        );
     }
     
     Snake.prototype.move = function(keyCode) {
@@ -175,25 +186,22 @@
         var body = this.body,
             bodyFirstX = body[0][0],
             bodyFirstY = body[0][1],
-            pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'};
+            pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'},
+            path = Game.cfg.snake.path;
         if (body.length > 1) {
             this.cleanTail();
         }
         switch (keyCode) {
-            // left
-            case this.path[pathNames.left]:
+            case path[pathNames.left]:
                 unshiftPopWithEdge(bodyFirstX - this.width, bodyFirstY, pathNames.left);
                 break;
-            // up
-            case this.path[pathNames.up]:
+            case path[pathNames.up]:
                 unshiftPopWithEdge(bodyFirstX, bodyFirstY - this.width, pathNames.up);
                 break;
-            // right
-            case this.path[pathNames.right]:
+            case path[pathNames.right]:
                 unshiftPopWithEdge(bodyFirstX + this.width, bodyFirstY, pathNames.right);
                 break;
-            // down
-            case this.path[pathNames.down]:
+            case path[pathNames.down]:
                 unshiftPopWithEdge(bodyFirstX, bodyFirstY + this.width, pathNames.down);
                 break;
         }
@@ -205,13 +213,14 @@
     
     Snake.prototype.die = function() {
         this.stop();
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.font = '30pt Arial';
-        this.ctx.fillStyle = 'white';
-        this.ctx.textAlign = 'center';
+        var ctx = this.ctx;
+        ctx.fillStyle = Game.cfg.field.color.die;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.font = '30pt Arial';
+        ctx.fillStyle = Game.cfg.field.color.fon;
+        ctx.textAlign = 'center';
         var text = 'YOU DIED!';
-        this.ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-        this.ctx.fillStyle = 'red';
+        ctx.fillText(text, this.canvas.width / 2, this.canvas.height / 2);
     }
     
     Snake.prototype.motion = function() {
@@ -223,8 +232,9 @@
     
     Snake.prototype.game = function() {
         function inPath(keycode) {
-            for (k in this.path) {
-                if (keycode === this.path[k]) {
+            var path = Game.cfg.snake.path;
+            for (k in path) {
+                if (keycode === path[k]) {
                     return true;
                 }
             }
