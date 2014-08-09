@@ -24,7 +24,12 @@
             'color' : {
                 'fon'    : 'white',
                 'die'    : 'red',
-                'message': 'white',
+            },
+            'message': {
+                'color': 'white',
+                'font' : '30pt Arial',
+                'align': 'center',
+                'text'  : 'YOU DIED!',
             }
         },
         'food': {
@@ -239,14 +244,16 @@
     
     Snake.prototype.die = function() {
         this.stop();
-        var ctx = this.ctx;
+        var ctx = this.ctx,
+            cfg = Game.cfg.field.message;
+            width = this.canvas.width,
+            height = this.canvas.height;
         ctx.fillStyle = Game.cfg.field.color.die;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.font = '30pt Arial';
-        ctx.fillStyle = Game.cfg.field.color.fon;
-        ctx.textAlign = 'center';
-        var text = 'YOU DIED!';
-        ctx.fillText(text, this.canvas.width / 2, this.canvas.height / 2);
+        ctx.fillRect(0, 0, width, height);
+        ctx.font = cfg.font;
+        ctx.fillStyle = cfg.color;
+        ctx.textAlign = cfg.align;
+        ctx.fillText(cfg.text, width / 2, height / 2);
     }
     
     Snake.prototype.motion = function() {
