@@ -51,23 +51,25 @@
             delete this.field;
         }
         this.field = new Field(this.canvas, cfg.field);
+        this.field.parent = this;
         if (typeof this.food != 'undefined') {
             delete this.food;
         }
         this.food = new Food(this.canvas, this.ctx, cfg.food.length, cfg.snake.width);
-        this.food.game();
+        this.food.parent = this;
         if (typeof this.snake != 'undefined') {
             this.snake.stop();
             delete this.snake;
         }
         this.snake = new Snake(this.canvas, this.ctx, cfg.snake.speed, cfg.snake.length, cfg.snake.width);
+        this.snake.parent = this;
         this.snake.game();
+        this.food.game();
     }
     
     Game.prototype.cleanCanvas = function() {
         this.ctx.fillStyle = Game.cfg.field.color.fon;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.width);
-        //this.ctx.fillStyle = Game.cfg.colors.red;
     }
 
     function Field(canvas, sizes) {
@@ -88,21 +90,45 @@
         this.draw();
     }
     
-    Food.prototype.build = function(place) {
-        var getRandom = function(max) {
-            var rand = Math.floor(Math.random() * max + this.width),
-                sub = rand % this.width;
-            return rand - sub;
+    Food.prototype.build = function(place, xy) {
+        var getRandomForXY = function(maxX, maxY, multiplicity) {
+            function getRandom(max) {
+                return Math.floor(Math.random() * max + multiplicity);
+            }
+            var getXorYFromBody = function(xOrY) {
+                xOrY = xOrY == 'x' ? 0 : 1;
+                return this.parent.snake.body.map(function(a) {return a[xOrY]})
+            }.bind(this);
+            function getRandomX() {
+                return correctValueWithMultiplicity(getRandom(maxX), multiplicity);
+            }
+            function getRandomY() {
+                return correctValueWithMultiplicity(getRandom(maxY), multiplicity);
+            }
+            function getTrueXY() {
+                var x = getRandomX(),
+                    y = getRandomY();
+                if (getXorYFromBody('x').indexOf(x) > -1 && getXorYFromBody('y').indexOf(y) > -1) {
+                    return getTrueXY.call(this);
+                }
+                return {'x': x, 'y': y}
+            }
+            return getTrueXY.call(this);
         }.bind(this);
-        var x = this.canvas.width / 2,
-            y = this.canvas.height / 2;
-        if (place == 'random') {
-            x = getRandom(this.canvas.width);
-            y = getRandom(this.canvas.height);
+        function correctValueWithMultiplicity(value, multiplicity) {
+            return value - value % multiplicity;
+        }
+        var width = this.width,
+            x = correctValueWithMultiplicity(this.canvas.width / 2, width),
+            y = correctValueWithMultiplicity(this.canvas.height / 2, width);
+        if (place == 'random' && this.constructor.name == Food.name) {
+            var xy = getRandomForXY(this.canvas.width - width, this.canvas.height - width, width);
+            x = xy.x;
+            y = xy.y;
         }
         for (var i = 0; i < this.length; ++i) {
             this.body.push([x, y + i * this.width]);
-        }        
+        }
     }
     
     Food.prototype.draw = function() {
