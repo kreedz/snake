@@ -2,4 +2,10 @@ canvas {
     height: 320px;
     width: 480px;
     border: black solid 1px;
+    top: 50%;
+    left: 50%;
+    position: absolute;
+    margin-left: -240px;
+    margin-top: -160px;
+    text-align: center;
 }
