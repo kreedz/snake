@@ -34,7 +34,7 @@
         },
         'food': {
             'length': 1,
-            'color' : 'red',
+            'color' : 'black',
         },
         'snake': {
             'color' : 'red',
@@ -95,15 +95,11 @@
         this.draw();
     }
     
-    Food.prototype.build = function(place, xy) {
+    Food.prototype.build = function(place) {
         var getRandomForXY = function(maxX, maxY, multiplicity) {
             function getRandom(max) {
                 return Math.floor(Math.random() * max + multiplicity);
             }
-            var getXorYFromBody = function(xOrY) {
-                xOrY = xOrY == 'x' ? 0 : 1;
-                return this.parent.snake.body.map(function(a) {return a[xOrY]})
-            }.bind(this);
             function getRandomX() {
                 return correctValueWithMultiplicity(getRandom(maxX), multiplicity);
             }
@@ -113,7 +109,7 @@
             function getTrueXY() {
                 var x = getRandomX(),
                     y = getRandomY();
-                if (getXorYFromBody('x').indexOf(x) > -1 && getXorYFromBody('y').indexOf(y) > -1) {
+                if (this.isFoodInSnake(x, y)) {
                     return getTrueXY.call(this);
                 }
                 return {'x': x, 'y': y}
@@ -137,10 +133,16 @@
     }
     
     Food.prototype.draw = function() {
-        this.ctx.fillStyle = Game.cfg.food.color;
+        var cfg = Game.cfg;
+        this.ctx.fillStyle = this.constructor.name == Food.name ? cfg.food.color : cfg.snake.color;
         for (var i = 0; i < this.length; ++i) {
             this.ctx.fillRect(this.body[i][0], this.body[i][1], this.width, this.width);
         }
+    }
+    
+    Food.prototype.deleteBodyElements = function() {
+        var body = this.body;
+        while(body.length) {body.pop()}
     }
     
     Food.prototype.clean = function() {
@@ -148,6 +150,12 @@
         for(var i = 0; i < this.length; ++i) {
             this.ctx.fillRect(this.body[i][0], this.body[i][1], this.width, this.width);
         }
+    }
+    
+    Food.prototype.reborn = function() {
+        this.deleteBodyElements();
+        this.build('random');
+        this.draw();
     }
     
     function Snake(canvas, ctx, speed, length, width) {
@@ -174,6 +182,51 @@
         );
     }
     
+    Food.prototype.isFoodInSnake = function(x, y) {
+        var getXorYFromBody = function(xOrY) {
+            xOrY = xOrY == 'x' ? 0 : 1;
+            return this.parent.snake.body.map(function(a) {return a[xOrY]});
+        }.bind(this);
+        var isXYinBody = function(xy) {
+            return this.parent.snake.body.some(function(item) {
+                return item[0] == this.x && item[1] == this.y;
+            }, xy);
+        }.bind(this);
+        var food = this.parent.food.body,
+            foodX,
+            foodY;
+        if (food.length) {
+            foodX = food[0][0];
+            foodY = food[0][1];
+        }
+        var x = typeof x != 'undefined' ? x : foodX,
+            y = typeof y != 'undefined' ? y : foodY;
+        return isXYinBody({'x': x, 'y': y});
+    }
+    
+    Snake.prototype.grow = function() {
+        var cfg = Game.cfg.snake.path,
+            body = this.body,
+            previousIndex = body.length > 1 ? body.length - 2 : body.length,
+            x = body[previousIndex][0],
+            y = body[previousIndex][1],
+            width = this.width;
+        switch (this.direction) {
+            case cfg.up:
+                body.push([x, y + width]);
+                break;
+            case cfg.left:
+                body.push([x + width, y]);
+                break;
+            case cfg.right:
+                body.push([x - width, y]);
+                break;
+            case cfg.down:
+                body.push([x, y - width]);
+                break;
+        }
+    }
+    
     Snake.prototype.move = function(keyCode) {
         var unshiftPop = function(x, y) {
             body.unshift([x, y]);
@@ -190,6 +243,10 @@
             return Object.keys(hash).length < body.length;
         }
         var unshiftPopWithEdge = function(x, y, path) {
+            var growAndFoodReborn = function() {
+                this.grow();
+                this.parent.food.reborn();
+            }.bind(this);
             switch (path) {
                 case pathNames.left:
                     if (x < 0) {
@@ -213,15 +270,16 @@
                     break;
             }
             unshiftPop(x, y);
-        }.bind(this);        
+            if (this.isFoodInSnake()) {
+                growAndFoodReborn();
+            }
+        }.bind(this);
         var body = this.body,
             bodyFirstX = body[0][0],
             bodyFirstY = body[0][1],
             pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'},
             path = Game.cfg.snake.path;
-        if (body.length > 1) {
             this.cleanTail();
-        }
         switch (keyCode) {
             case path[pathNames.left]:
                 unshiftPopWithEdge(bodyFirstX - this.width, bodyFirstY, pathNames.left);
