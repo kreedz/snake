@@ -47,6 +47,7 @@
                 'right' : 39,
                 'down'  : 40
             },
+            'space' : 32,
         },
     }
     
@@ -158,30 +159,6 @@
         this.draw();
     }
     
-    function Snake(canvas, ctx, speed, length, width) {
-        Snake.superclass.constructor.call(this, canvas, ctx, width);
-        this.speed = speed > 0 ? speed : 1;
-        this.length = length > 0 ? length : 1;
-        this.width = width > 0 ? width : 1;
-        this.body = [];
-        this.ctx = ctx;
-        this.ctx.fillStyle = Game.cfg.snake.color;
-        this.direction = Game.cfg.snake.path.up;
-    }
-    
-    extend(Snake, Food);
-    
-    Snake.prototype.cleanTail = function() {
-        var body = this.body;
-        this.ctx.fillStyle = Game.cfg.field.color.fon;
-        this.ctx.fillRect(
-            body[body.length - 1][0], 
-            body[body.length - 1][1],
-            this.width,
-            this.width
-        );
-    }
-    
     Food.prototype.isFoodInSnake = function(x, y) {
         var getXorYFromBody = function(xOrY) {
             xOrY = xOrY == 'x' ? 0 : 1;
@@ -202,6 +179,31 @@
         var x = typeof x != 'undefined' ? x : foodX,
             y = typeof y != 'undefined' ? y : foodY;
         return isXYinBody({'x': x, 'y': y});
+    }
+    
+    function Snake(canvas, ctx, speed, length, width) {
+        Snake.superclass.constructor.call(this, canvas, ctx, width);
+        this.speed = speed > 0 ? speed : 1;
+        this.length = length > 0 ? length : 1;
+        this.width = width > 0 ? width : 1;
+        this.body = [];
+        this.ctx = ctx;
+        var cfg = Game.cfg.snake;
+        this.ctx.fillStyle = cfg.color;
+        this.direction = cfg.path.up;
+    }
+    
+    extend(Snake, Food);
+    
+    Snake.prototype.cleanTail = function() {
+        var body = this.body;
+        this.ctx.fillStyle = Game.cfg.field.color.fon;
+        this.ctx.fillRect(
+            body[body.length - 1][0], 
+            body[body.length - 1][1],
+            this.width,
+            this.width
+        );
     }
     
     Snake.prototype.grow = function() {
@@ -259,12 +261,12 @@
                     }
                     break;
                 case pathNames.right:
-                    if (x > this.canvas.width) {
+                    if (x >= this.canvas.width) {
                         x = 0;
                     }
                     break;
                 case pathNames.down:
-                    if (y >  this.canvas.height) {
+                    if (y >= this.canvas.height) {
                         y = 0;
                     }
                     break;
@@ -279,7 +281,7 @@
             bodyFirstY = body[0][1],
             pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'},
             path = Game.cfg.snake.path;
-            this.cleanTail();
+        this.cleanTail();
         switch (keyCode) {
             case path[pathNames.left]:
                 unshiftPopWithEdge(bodyFirstX - this.width, bodyFirstY, pathNames.left);
@@ -322,19 +324,53 @@
     }
     
     Snake.prototype.game = function() {
-        function inPath(keycode) {
-            var path = Game.cfg.snake.path;
+        var path = Game.cfg.snake.path;
+        function inPath(key) {
             for (k in path) {
-                if (keycode === path[k]) {
+                if (key === path[k]) {
                     return true;
                 }
             }
             return false;
         }
+        function setTrueDirection() {
+            if (this.body.length > 1) {
+                var body = this.body,
+                    length = body.length
+                    last = body[length - 1],
+                    penult = body[body.length - 2],
+                    fieldWidth = Game.cfg.field.width,
+                    fieldHeight = Game.cfg.field.height;
+                if (last[0] > penult[0] || last[0] == 0 && penult[0] == fieldWidth - this.width) {
+                    this.direction = path.right;
+                } else if (last[0] < penult[0] || last[0] == fieldWidth - this.width && penult[0] == 0) {
+                    this.direction = path.left;
+                } else if (last[1] > penult[1] || last[1] == 0 && penult[1] == fieldHeight - this.width) {
+                    this.direction = path.down;
+                } else if (last[1] < penult[1] || last[1] == fieldHeight - this.width && penult[1] == 0) {
+                    this.direction = path.up;
+                }
+            }
+        }
+        function isPossibleToReverse(key) {
+            var dir = this.direction;
+            return key == path.left  && dir == path.right
+                || key == path.right && dir == path.left
+                || key == path.up    && dir == path.down
+                || key == path.down  && dir == path.up;
+        }
         this.build('center');
         document.onkeydown = function(e) {
-            if (inPath.call(this, e.keyCode)) {
-                this.direction = e.keyCode;
+            var key = e.keyCode;
+            if (inPath.call(this, key)) {
+                if (isPossibleToReverse.call(this, key)) {
+                    setTrueDirection.call(this);
+                    this.body.reverse();
+                } else {
+                    this.direction = key;
+                }
+            } else if (key == Game.cfg.snake.space) {
+                this.parent.start();
             }
         }.bind(this);
         this.motion();
