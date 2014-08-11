@@ -191,6 +191,7 @@
         var cfg = Game.cfg.snake;
         this.ctx.fillStyle = cfg.color;
         this.direction = cfg.path.up;
+        this.doReverse = false;
     }
     
     extend(Snake, Food);
@@ -209,9 +210,9 @@
     Snake.prototype.grow = function() {
         var cfg = Game.cfg.snake.path,
             body = this.body,
-            previousIndex = body.length > 1 ? body.length - 2 : body.length,
-            x = body[previousIndex][0],
-            y = body[previousIndex][1],
+            lastIndex = body.length - 1,
+            x = body[lastIndex][0],
+            y = body[lastIndex][1],
             width = this.width;
         switch (this.direction) {
             case cfg.up:
@@ -276,6 +277,10 @@
                 growAndFoodReborn();
             }
         }.bind(this);
+        if (this.doReverse) {
+            this.body.reverse();
+            this.doReverse = false;
+        }
         var body = this.body,
             bodyFirstX = body[0][0],
             bodyFirstY = body[0][1],
@@ -365,7 +370,7 @@
             if (inPath.call(this, key)) {
                 if (isPossibleToReverse.call(this, key)) {
                     setTrueDirection.call(this);
-                    this.body.reverse();
+                    this.doReverse = true;
                 } else {
                     this.direction = key;
                 }
