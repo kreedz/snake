@@ -1,11 +1,15 @@
-canvas {
-    height: 320px;
-    width: 480px;
-    border: black solid 1px;
+#wrapper {
+    height: 510px;
+    width: 640px;
     top: 50%;
     left: 50%;
     position: absolute;
-    margin-left: -240px;
-    margin-top: -160px;
-    text-align: center;
+    margin-left: -320px;
+    margin-top: -255px;
+    font: 16pt Arial;
+}
+
+canvas {
+    bottom: 0px;
+    border: black solid 1px;
 }

@@ -108,8 +108,11 @@
         }
         this.snake = new Snake(this.canvas, this.ctx, cfg.snake.speed, cfg.snake.length, cfg.snake.width);
         this.snake.parent = this;
-        this.level = new Level(1);
-        this.level.parent = this;
+        this.withoutLevels = document.getElementsByTagName('input')[0].checked;
+        if (!this.withoutLevels) {
+            this.level = new Level(1);
+            this.level.parent = this;
+        }
     }
     
     Game.prototype.isComplete = function() {
@@ -124,7 +127,9 @@
         this.initFields();
         this.snake.game();
         this.food.game();
-        this.level.game();
+        if (!this.withoutLevels) {
+            this.level.game();
+        }
     }
     
     Game.prototype.cleanCanvas = function() {
@@ -213,27 +218,34 @@
     }
     
     Food.prototype.reborn = function() {
-        this.deleteBodyElements();
-        --this.rebornCount;
-        if (this.parent.level.isComplete()) {
-            var parent = this.parent;
-            if (parent.isComplete()) {
-                parent.end();
-            } else {
-                parent.snake.die('levelover');
-                setTimeout(function() {
-                    parent.initFields();
-                    parent.level = new Level(parent.level.levelNumber + 1);
-                    parent.level.parent = parent;
-                    parent.cleanCanvas();
-                    parent.snake.game();
-                    parent.food.game();
-                    parent.level.game();
-                }.bind(this), 1000);
-            }
-        } else {
+        var buildDrawFood = function() {
             this.build('random');
             this.draw();
+        }.bind(this);
+        this.deleteBodyElements();
+        var parent = this.parent;
+        if (!parent.withoutLevels) {
+            --this.rebornCount;
+            if (parent.level.isComplete()) {
+                if (parent.isComplete()) {
+                    parent.end();
+                } else {
+                    parent.snake.die('levelover');
+                    setTimeout(function() {
+                        parent.initFields();
+                        parent.level = new Level(parent.level.levelNumber + 1);
+                        parent.level.parent = parent;
+                        parent.cleanCanvas();
+                        parent.snake.game();
+                        parent.food.game();
+                        parent.level.game();
+                    }.bind(this), 1000);
+                }
+            } else {
+                buildDrawFood();
+            }
+        } else {
+            buildDrawFood();
         }
     }
     
@@ -481,6 +493,10 @@
             } else if (key == Game.cfg.snake.space) {
                 this.parent.start();
             }
+        }.bind(this);
+        document.getElementsByTagName('input')[0].onclick = function() {
+            this.stop();
+            this.parent.start();
         }.bind(this);
         this.motion();
     }
