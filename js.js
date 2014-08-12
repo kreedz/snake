@@ -18,6 +18,18 @@
     }
     
     Game.cfg = {
+        'dataset': {
+            'food': {
+                'types': {
+                    'normal' : 'normal',
+                    'freeze' : 'freeze',
+                    'speedy' : 'speedy',
+                }
+            }
+        }
+    }
+    var foodTypes = Game.cfg.dataset.food.types;
+    Game.cfg = {
         'field': {
             'width' : 640,
             'height': 480,
@@ -29,12 +41,13 @@
                 'color': 'white',
                 'font' : '30pt Arial',
                 'align': 'center',
-                'text'  : 'YOU DIED!',
+                'text' : 'YOU DIED!',
             }
         },
         'food': {
             'length': 1,
             'color' : 'black',
+            'type'  : foodTypes.normal,
         },
         'snake': {
             'color' : 'red',
@@ -49,9 +62,35 @@
             },
             'space' : 32,
         },
+        'level': {
+            '1': {
+                'wall'     : 0,
+                'foodCount': 2,
+            },
+            '2': {
+                'wall'     : 0,
+                'foodCount': 3,
+            },
+            'maxLevel': 2,
+            'messages': {
+                'levelOver': {
+                    'textColor' : 'white',
+                    'fonColor'  : 'green',
+                    'text'      : 'LEVEL IS COMPLETE!',
+                },
+                'gameOver': {
+                    'textColor' : 'white',
+                    'fonColor'  : 'blue',
+                    'text'      : 'GAME IS COMPLETE!',
+                },
+            },
+        },
     }
+    Game.cfg.level[1][foodTypes.normal] = 5;
+    Game.cfg.level[1][foodTypes.freeze] = 0;
+    Game.cfg.level[1][foodTypes.speedy] = 0;
     
-    Game.prototype.start = function() {
+    Game.prototype.initFields = function() {
         var cfg = Game.cfg;
         if (typeof this.field != 'undefined') {
             delete this.field;
@@ -61,7 +100,7 @@
         if (typeof this.food != 'undefined') {
             delete this.food;
         }
-        this.food = new Food(this.canvas, this.ctx, cfg.food.length, cfg.snake.width);
+        this.food = new Food(this.canvas, this.ctx, cfg.food.length, cfg.snake.width, cfg.food.type);
         this.food.parent = this;
         if (typeof this.snake != 'undefined') {
             this.snake.stop();
@@ -69,8 +108,23 @@
         }
         this.snake = new Snake(this.canvas, this.ctx, cfg.snake.speed, cfg.snake.length, cfg.snake.width);
         this.snake.parent = this;
+        this.level = new Level(1);
+        this.level.parent = this;
+    }
+    
+    Game.prototype.isComplete = function() {
+        return this.level.levelNumber == Game.cfg.level.maxLevel;
+    }
+    
+    Game.prototype.end = function() {
+        this.snake.die('gameover');
+    }
+    
+    Game.prototype.start = function() {
+        this.initFields();
         this.snake.game();
         this.food.game();
+        this.level.game();
     }
     
     Game.prototype.cleanCanvas = function() {
@@ -83,13 +137,19 @@
         canvas.height = sizes.height;
     }
     
-    function Food(canvas, ctx, length, width) {
+    function Food(canvas, ctx, length, width, type) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.width = width > 0 ? width : 1;
         this.length = length > 0 ? length : 1;
         this.body = [];
-    } 
+        this.color = Game.cfg.food.color;
+        this.countOfUsedTypes = {};
+        this.countOfUsedTypes[foodTypes.normal] = 0;
+        this.countOfUsedTypes[foodTypes.freeze] = 0;
+        this.countOfUsedTypes[foodTypes.speedy] = 0;
+        this.type = type;
+    }
     
     Food.prototype.game = function() {
         this.build('random');
@@ -134,8 +194,7 @@
     }
     
     Food.prototype.draw = function() {
-        var cfg = Game.cfg;
-        this.ctx.fillStyle = this.constructor.name == Food.name ? cfg.food.color : cfg.snake.color;
+        this.ctx.fillStyle = this.color;
         for (var i = 0; i < this.length; ++i) {
             this.ctx.fillRect(this.body[i][0], this.body[i][1], this.width, this.width);
         }
@@ -155,8 +214,27 @@
     
     Food.prototype.reborn = function() {
         this.deleteBodyElements();
-        this.build('random');
-        this.draw();
+        --this.rebornCount;
+        if (this.parent.level.isComplete()) {
+            var parent = this.parent;
+            if (parent.isComplete()) {
+                parent.end();
+            } else {
+                parent.snake.die('levelover');
+                setTimeout(function() {
+                    parent.initFields();
+                    parent.level = new Level(parent.level.levelNumber + 1);
+                    parent.level.parent = parent;
+                    parent.cleanCanvas();
+                    parent.snake.game();
+                    parent.food.game();
+                    parent.level.game();
+                }.bind(this), 1000);
+            }
+        } else {
+            this.build('random');
+            this.draw();
+        }
     }
     
     Food.prototype.isFoodInSnake = function(x, y) {
@@ -193,6 +271,7 @@
         this.direction = cfg.path.up;
         this.doReverse = false;
         this.goneTail = {};
+        this.color = Game.cfg.snake.color;
     }
     
     extend(Snake, Food);
@@ -314,18 +393,36 @@
         clearInterval(this.intervalID);
     }
     
-    Snake.prototype.die = function() {
+    Snake.prototype.die = function(levelOrGameOver) {
         this.stop();
+        this.deleteBodyElements();
         var ctx = this.ctx,
-            cfg = Game.cfg.field.message;
+            cfg = Game.cfg.field.message,
             width = this.canvas.width,
-            height = this.canvas.height;
-        ctx.fillStyle = Game.cfg.field.color.die;
+            height = this.canvas.height,
+            fonColor = Game.cfg.field.color.die,
+            textColor = cfg.color,
+            text = cfg.text;
+        if (typeof levelOrGameOver != 'undefined') {
+            var messages = Game.cfg.level.messages;
+            if (levelOrGameOver == 'levelover') {
+                var msgLevel = messages.levelOver;
+                fonColor = msgLevel.fonColor;
+                textColor = msgLevel.textColor;
+                text = msgLevel.text;
+            } else if (levelOrGameOver == 'gameover') {
+                var msgGame = messages.gameOver;
+                fonColor = msgGame.fonColor;
+                textColor = msgGame.textColor;
+                text = msgGame.text;
+            }
+        }
+        ctx.fillStyle = fonColor;
         ctx.fillRect(0, 0, width, height);
         ctx.font = cfg.font;
-        ctx.fillStyle = cfg.color;
+        ctx.fillStyle = textColor;
         ctx.textAlign = cfg.align;
-        ctx.fillText(cfg.text, width / 2, height / 2);
+        ctx.fillText(text, width / 2, height / 2);
     }
     
     Snake.prototype.motion = function() {
@@ -387,7 +484,24 @@
         }.bind(this);
         this.motion();
     }
-
+    
+    function Level(levelNumber) {
+        this.levelNumber = levelNumber;
+        // TODO: Wall.createWalls(cfg.wall);
+    }
+    
+    Level.prototype.game = function() {
+        var parent = this.parent,
+            cfg = Game.cfg.level[this.levelNumber];
+        parent.food.rebornCount = cfg.foodCount;
+        parent.food.types = cfg.foodType;
+        // TODO: parent.food.setRandomType();
+    }
+    
+    Level.prototype.isComplete = function() {
+        return !this.parent.food.rebornCount;
+    }
+    
     var game = new Game(canvas);
     game.start();
 })()
