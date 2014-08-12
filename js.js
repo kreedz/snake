@@ -192,16 +192,16 @@
         this.ctx.fillStyle = cfg.color;
         this.direction = cfg.path.up;
         this.doReverse = false;
+        this.goneTail = {};
     }
     
     extend(Snake, Food);
     
     Snake.prototype.cleanTail = function() {
-        var body = this.body;
         this.ctx.fillStyle = Game.cfg.field.color.fon;
         this.ctx.fillRect(
-            body[body.length - 1][0], 
-            body[body.length - 1][1],
+            this.goneTail.x, 
+            this.goneTail.y,
             this.width,
             this.width
         );
@@ -285,8 +285,10 @@
             bodyFirstX = body[0][0],
             bodyFirstY = body[0][1],
             pathNames = {'left': 'left', 'up': 'up', 'right': 'right', 'down': 'down'},
-            path = Game.cfg.snake.path;
-        this.cleanTail();
+            path = Game.cfg.snake.path,
+            length = body.length,
+            bodyLast = body[length - 1];
+        this.goneTail = {'x': bodyLast[0], 'y': bodyLast[1]};
         switch (keyCode) {
             case path[pathNames.left]:
                 unshiftPopWithEdge(bodyFirstX - this.width, bodyFirstY, pathNames.left);
@@ -301,6 +303,11 @@
                 unshiftPopWithEdge(bodyFirstX, bodyFirstY + this.width, pathNames.down);
                 break;
         }
+    }
+    
+    Snake.prototype.draw = function() {
+        Snake.superclass.draw.call(this);
+        this.cleanTail();
     }
     
     Snake.prototype.stop = function() {
@@ -338,7 +345,7 @@
             }
             return false;
         }
-        function setTrueDirection() {
+        function setTrueDirection(key) {
             if (this.body.length > 1) {
                 var body = this.body,
                     length = body.length
@@ -355,21 +362,21 @@
                 } else if (last[1] < penult[1] || last[1] == fieldHeight - this.width && penult[1] == 0) {
                     this.direction = path.up;
                 }
+            } else {
+                this.direction = key;
             }
         }
         function isPossibleToReverse(key) {
             var dir = this.direction;
-            return key == path.left  && dir == path.right
-                || key == path.right && dir == path.left
-                || key == path.up    && dir == path.down
-                || key == path.down  && dir == path.up;
+            return key == path.left  && dir == path.right || key == path.right && dir == path.left
+                || key == path.up    && dir == path.down  || key == path.down  && dir == path.up;
         }
         this.build('center');
         document.onkeydown = function(e) {
             var key = e.keyCode;
             if (inPath.call(this, key)) {
                 if (isPossibleToReverse.call(this, key)) {
-                    setTrueDirection.call(this);
+                    setTrueDirection.call(this, key);
                     this.doReverse = true;
                 } else {
                     this.direction = key;
